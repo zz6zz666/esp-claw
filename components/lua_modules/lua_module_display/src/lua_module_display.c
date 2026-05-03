@@ -48,20 +48,6 @@ static float lua_display_check_number_arg(lua_State *L, int index, const char *n
     return (float)lua_tonumber(L, index);
 }
 
-static bool lua_display_is_ascii_text(const char *text)
-{
-    if (!text) {
-        return false;
-    }
-    while (*text) {
-        unsigned char ch = (unsigned char)*text++;
-        if ((ch < 32 || ch > 126) && ch != '\n' && ch != '\r' && ch != '\t') {
-            return false;
-        }
-    }
-    return true;
-}
-
 /* Pack three consecutive integer arguments into an RGB565 colour. */
 static uint16_t lua_display_color(lua_State *L, int start_index)
 {
@@ -319,12 +305,6 @@ static int lua_display_draw_text(lua_State *L)
     uint8_t font_size = 24;
     bool has_bg = false;
 
-    if (!lua_display_is_ascii_text(text)) {
-        return luaL_error(L,
-                          "display draw_text only supports ASCII text; "
-                          "use draw_png_file/draw_jpeg_file for Chinese or other Unicode text");
-    }
-
     lua_display_parse_text_options(L, 4,
                                    &text_r, &text_g, &text_b, &font_size,
                                    &bg_r, &bg_g, &bg_b, &has_bg, NULL, NULL);
@@ -371,12 +351,6 @@ static int lua_display_draw_text_aligned(lua_State *L)
     bool has_bg = false;
     display_hal_text_align_t  align  = DISPLAY_HAL_TEXT_ALIGN_LEFT;
     display_hal_text_valign_t valign = DISPLAY_HAL_TEXT_VALIGN_TOP;
-
-    if (!lua_display_is_ascii_text(text)) {
-        return luaL_error(L,
-                          "display draw_text_aligned only supports ASCII text; "
-                          "use draw_png_file/draw_jpeg_file for Chinese or other Unicode text");
-    }
 
     lua_display_parse_text_options(L, 6,
                                    &text_r, &text_g, &text_b, &font_size,
