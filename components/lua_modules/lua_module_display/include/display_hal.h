@@ -143,6 +143,9 @@ esp_err_t display_hal_draw_jpeg_scaled(int x, int y,
                                        int scale_w, int scale_h,
                                        int *out_w, int *out_h);
 
+/* Block the calling thread for @ms milliseconds (simulator: wall-clock). */
+void display_hal_sleep_ms(uint32_t ms);
+
 #ifdef __cplusplus
 }
 #endif
