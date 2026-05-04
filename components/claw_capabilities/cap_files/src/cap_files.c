@@ -697,7 +697,7 @@ esp_err_t cap_files_register_group(void)
 
 esp_err_t cap_files_set_base_dir(const char *base_dir)
 {
-    if (!base_dir || !base_dir[0] || base_dir[0] != '/') {
+    if (!base_dir || !base_dir[0]) {
         return ESP_ERR_INVALID_ARG;
     }
 

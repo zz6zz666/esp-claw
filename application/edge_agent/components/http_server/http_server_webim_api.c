@@ -197,7 +197,7 @@ static bool webim_path_allowed_upload(const char *path)
 
 static void webim_build_file_url(const char *storage_path, char *out, size_t out_sz)
 {
-    if (!storage_path || storage_path[0] != '/') {
+    if (!storage_path || storage_path[0] == '\0') {
         strlcpy(out, "", out_sz);
         return;
     }

@@ -92,7 +92,7 @@ static void on_wifi_state_changed(bool connected, void *user_ctx)
 
 static esp_err_t app_claw_init_storage_paths(app_claw_storage_paths_t *paths)
 {
-    if (!paths || !app_fatfs_base_path || app_fatfs_base_path[0] != '/') {
+    if (!paths || !app_fatfs_base_path || app_fatfs_base_path[0] == '\0') {
         return ESP_ERR_INVALID_ARG;
     }
 

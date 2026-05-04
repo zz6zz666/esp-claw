@@ -125,7 +125,7 @@ esp_err_t cap_lua_add_package_path_dir(const char *dir)
     cap_lua_package_path_dir_node_t *node = NULL;
     cap_lua_package_path_dir_node_t **tail = &s_package_path_dirs;
 
-    if (!dir || dir[0] != '/' || strstr(dir, "..") != NULL) {
+    if (!dir || dir[0] == '\0' || strstr(dir, "..") != NULL) {
         ESP_LOGE(TAG, "add_package_path_dir: bad dir=%s", dir ? dir : "(null)");
         return ESP_ERR_INVALID_ARG;
     }
@@ -961,7 +961,7 @@ static const claw_cap_group_t s_lua_group = {
 
 esp_err_t cap_lua_register_group(const char *base_dir)
 {
-    if (!base_dir || base_dir[0] != '/') {
+    if (!base_dir || base_dir[0] == '\0') {
         ESP_LOGE(TAG, "register_group: bad base_dir");
         return ESP_ERR_INVALID_ARG;
     }

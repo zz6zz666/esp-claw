@@ -248,7 +248,7 @@ static esp_err_t cap_im_attachment_ensure_parent_dirs(const char *path)
     }
     *slash = '\0';
 
-    if (dir[0] != '/') {
+    if (dir[0] == '\0') {
         return ESP_ERR_INVALID_ARG;
     }
 

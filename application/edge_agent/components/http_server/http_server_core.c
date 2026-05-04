@@ -40,7 +40,7 @@ esp_err_t http_server_captive_404_handler(httpd_req_t *req, httpd_err_code_t err
 
 esp_err_t http_server_init(const http_server_config_t *config)
 {
-    if (!config || !config->storage_base_path || config->storage_base_path[0] != '/') {
+    if (!config || !config->storage_base_path || config->storage_base_path[0] == '\0') {
         return ESP_ERR_INVALID_ARG;
     }
     if (!config->services.load_config || !config->services.save_config || !config->services.get_wifi_status) {
