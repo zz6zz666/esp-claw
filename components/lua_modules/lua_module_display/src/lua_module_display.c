@@ -35,10 +35,12 @@ static void lua_display_ensure_frame(void);
 
 static int lua_display_check_integer_arg(lua_State *L, int index, const char *name)
 {
-    if (!lua_isinteger(L, index)) {
-        return luaL_error(L, "display %s must be an integer", name);
+    /* Lua 5.3+ separates integer and float subtypes; / always yields float.
+     * Accept any number and round to nearest integer. */
+    if (!lua_isnumber(L, index)) {
+        return luaL_error(L, "display %s must be a number", name);
     }
-    return (int)lua_tointeger(L, index);
+    return (int)(lua_tonumber(L, index) + 0.5);
 }
 
 static float lua_display_check_number_arg(lua_State *L, int index, const char *name)
@@ -751,7 +753,7 @@ static esp_err_t lua_display_read_file(const char *path, uint8_t **data_out, siz
 }
 
 /* -------------------------------------------------------------------------
- * PNG decode (RGBA â†?RGB565, alpha pre-multiplied against black)
+ * PNG decode (RGBA ï¿½?RGB565, alpha pre-multiplied against black)
  * ---------------------------------------------------------------------- */
 
 static esp_err_t lua_display_decode_png(const uint8_t *png_data, size_t png_len,
