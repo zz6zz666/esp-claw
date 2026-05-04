@@ -299,6 +299,7 @@ static void lua_display_parse_text_options(lua_State *L, int index,
 
 static int lua_display_draw_text(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = lua_display_check_integer_arg(L, 1, "x");
     int y = lua_display_check_integer_arg(L, 2, "y");
     const char *text = luaL_checkstring(L, 3);
@@ -323,6 +324,7 @@ static int lua_display_draw_text(lua_State *L)
 
 static int lua_display_measure_text(lua_State *L)
 {
+    lua_display_ensure_frame();
     const char *text = luaL_checkstring(L, 1);
     uint8_t font_size = 24;
     uint16_t width = 0, height = 0;
@@ -342,6 +344,7 @@ static int lua_display_measure_text(lua_State *L)
 
 static int lua_display_draw_text_aligned(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x      = lua_display_check_integer_arg(L, 1, "x");
     int y      = lua_display_check_integer_arg(L, 2, "y");
     int width  = lua_display_check_integer_arg(L, 3, "width");
@@ -394,6 +397,7 @@ static int lua_display_clear(lua_State *L)
 
 static int lua_display_set_clip_rect(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x      = lua_display_check_integer_arg(L, 1, "x");
     int y      = lua_display_check_integer_arg(L, 2, "y");
     int width  = lua_display_check_integer_arg(L, 3, "width");
@@ -407,6 +411,7 @@ static int lua_display_set_clip_rect(lua_State *L)
 
 static int lua_display_clear_clip_rect(lua_State *L)
 {
+    lua_display_ensure_frame();
     (void)L;
     esp_err_t err = display_hal_clear_clip_rect();
     if (err != ESP_OK) {
@@ -417,6 +422,7 @@ static int lua_display_clear_clip_rect(lua_State *L)
 
 static int lua_display_fill_rect(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x      = lua_display_check_integer_arg(L, 1, "x");
     int y      = lua_display_check_integer_arg(L, 2, "y");
     int width  = lua_display_check_integer_arg(L, 3, "width");
@@ -444,6 +450,7 @@ static int lua_display_draw_pixel(lua_State *L)
 
 static int lua_display_draw_line(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x0 = lua_display_check_integer_arg(L, 1, "x0");
     int y0 = lua_display_check_integer_arg(L, 2, "y0");
     int x1 = lua_display_check_integer_arg(L, 3, "x1");
@@ -458,6 +465,7 @@ static int lua_display_draw_line(lua_State *L)
 
 static int lua_display_draw_rect(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x      = lua_display_check_integer_arg(L, 1, "x");
     int y      = lua_display_check_integer_arg(L, 2, "y");
     int width  = lua_display_check_integer_arg(L, 3, "width");
@@ -612,6 +620,7 @@ static int lua_display_height(lua_State *L)
 
 static int lua_display_draw_bitmap(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = (int)luaL_checkinteger(L, 1);
     int y = (int)luaL_checkinteger(L, 2);
     int w = (int)luaL_checkinteger(L, 3);
@@ -637,6 +646,7 @@ static int lua_display_draw_bitmap(lua_State *L)
 
 static int lua_display_draw_bitmap_crop(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x          = lua_display_check_integer_arg(L, 1, "x");
     int y          = lua_display_check_integer_arg(L, 2, "y");
     int src_x      = lua_display_check_integer_arg(L, 3, "src_x");
@@ -741,7 +751,7 @@ static esp_err_t lua_display_read_file(const char *path, uint8_t **data_out, siz
 }
 
 /* -------------------------------------------------------------------------
- * PNG decode (RGBA â†’ RGB565, alpha pre-multiplied against black)
+ * PNG decode (RGBA â†?RGB565, alpha pre-multiplied against black)
  * ---------------------------------------------------------------------- */
 
 static esp_err_t lua_display_decode_png(const uint8_t *png_data, size_t png_len,
@@ -820,6 +830,7 @@ static esp_err_t lua_display_decode_png(const uint8_t *png_data, size_t png_len,
  */
 static int lua_display_draw_jpeg(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = (int)luaL_checkinteger(L, 1);
     int y = (int)luaL_checkinteger(L, 2);
     size_t jpeg_len = 0;
@@ -839,6 +850,7 @@ static int lua_display_draw_jpeg(lua_State *L)
 
 static int lua_display_draw_jpeg_file(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = (int)luaL_checkinteger(L, 1);
     int y = (int)luaL_checkinteger(L, 2);
     const char *path = luaL_checkstring(L, 3);
@@ -863,6 +875,7 @@ static int lua_display_draw_jpeg_file(lua_State *L)
 
 static int lua_display_draw_png_file(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = (int)luaL_checkinteger(L, 1);
     int y = (int)luaL_checkinteger(L, 2);
     const char *path = luaL_checkstring(L, 3);
@@ -895,6 +908,7 @@ static int lua_display_draw_png_file(lua_State *L)
 
 static int lua_display_draw_jpeg_crop(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x     = (int)luaL_checkinteger(L, 1);
     int y     = (int)luaL_checkinteger(L, 2);
     int src_x = (int)luaL_checkinteger(L, 3);
@@ -918,6 +932,7 @@ static int lua_display_draw_jpeg_crop(lua_State *L)
 
 static int lua_display_draw_jpeg_file_crop(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x     = (int)luaL_checkinteger(L, 1);
     int y     = (int)luaL_checkinteger(L, 2);
     int src_x = (int)luaL_checkinteger(L, 3);
@@ -954,6 +969,7 @@ static int lua_display_align_down(int value, int align)
 
 static int lua_display_draw_rgb565_crop(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = lua_display_check_integer_arg(L, 1, "x");
     int y = lua_display_check_integer_arg(L, 2, "y");
     int src_x = lua_display_check_integer_arg(L, 3, "src_x");
@@ -987,6 +1003,7 @@ static int lua_display_draw_rgb565_crop(lua_State *L)
 
 static int lua_display_draw_rgb565_scaled(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = lua_display_check_integer_arg(L, 1, "x");
     int y = lua_display_check_integer_arg(L, 2, "y");
     int src_width = lua_display_check_integer_arg(L, 3, "src_width");
@@ -1026,6 +1043,7 @@ static int lua_display_draw_rgb565_scaled(lua_State *L)
 
 static int lua_display_draw_rgb565_fit(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = lua_display_check_integer_arg(L, 1, "x");
     int y = lua_display_check_integer_arg(L, 2, "y");
     int src_width = lua_display_check_integer_arg(L, 3, "src_width");
@@ -1105,6 +1123,7 @@ static int lua_display_draw_rgb565_fit(lua_State *L)
  */
 static int lua_display_draw_jpeg_file_scaled(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x       = (int)luaL_checkinteger(L, 1);
     int y       = (int)luaL_checkinteger(L, 2);
     int scale_w = (int)luaL_checkinteger(L, 3);
@@ -1143,6 +1162,7 @@ static int lua_display_draw_jpeg_file_scaled(lua_State *L)
  */
 static int lua_display_draw_jpeg_file_fit(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x     = (int)luaL_checkinteger(L, 1);
     int y     = (int)luaL_checkinteger(L, 2);
     int max_w = (int)luaL_checkinteger(L, 3);
@@ -1207,6 +1227,7 @@ static int lua_display_draw_jpeg_file_fit(lua_State *L)
 
 static int lua_display_fill_circle(lua_State *L)
 {
+    lua_display_ensure_frame();
     int cx = lua_display_check_integer_arg(L, 1, "cx");
     int cy = lua_display_check_integer_arg(L, 2, "cy");
     int r  = lua_display_check_integer_arg(L, 3, "radius");
@@ -1220,6 +1241,7 @@ static int lua_display_fill_circle(lua_State *L)
 
 static int lua_display_draw_circle(lua_State *L)
 {
+    lua_display_ensure_frame();
     int cx = lua_display_check_integer_arg(L, 1, "cx");
     int cy = lua_display_check_integer_arg(L, 2, "cy");
     int r  = lua_display_check_integer_arg(L, 3, "radius");
@@ -1233,6 +1255,7 @@ static int lua_display_draw_circle(lua_State *L)
 
 static int lua_display_draw_arc(lua_State *L)
 {
+    lua_display_ensure_frame();
     int cx     = lua_display_check_integer_arg(L, 1, "cx");
     int cy     = lua_display_check_integer_arg(L, 2, "cy");
     int radius = lua_display_check_integer_arg(L, 3, "radius");
@@ -1248,6 +1271,7 @@ static int lua_display_draw_arc(lua_State *L)
 
 static int lua_display_fill_arc(lua_State *L)
 {
+    lua_display_ensure_frame();
     int cx           = lua_display_check_integer_arg(L, 1, "cx");
     int cy           = lua_display_check_integer_arg(L, 2, "cy");
     int inner_radius = lua_display_check_integer_arg(L, 3, "inner_radius");
@@ -1265,6 +1289,7 @@ static int lua_display_fill_arc(lua_State *L)
 
 static int lua_display_draw_ellipse(lua_State *L)
 {
+    lua_display_ensure_frame();
     int cx       = lua_display_check_integer_arg(L, 1, "cx");
     int cy       = lua_display_check_integer_arg(L, 2, "cy");
     int radius_x = lua_display_check_integer_arg(L, 3, "radius_x");
@@ -1279,6 +1304,7 @@ static int lua_display_draw_ellipse(lua_State *L)
 
 static int lua_display_fill_ellipse(lua_State *L)
 {
+    lua_display_ensure_frame();
     int cx       = lua_display_check_integer_arg(L, 1, "cx");
     int cy       = lua_display_check_integer_arg(L, 2, "cy");
     int radius_x = lua_display_check_integer_arg(L, 3, "radius_x");
@@ -1293,6 +1319,7 @@ static int lua_display_fill_ellipse(lua_State *L)
 
 static int lua_display_draw_round_rect(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x      = lua_display_check_integer_arg(L, 1, "x");
     int y      = lua_display_check_integer_arg(L, 2, "y");
     int width  = lua_display_check_integer_arg(L, 3, "width");
@@ -1308,6 +1335,7 @@ static int lua_display_draw_round_rect(lua_State *L)
 
 static int lua_display_fill_round_rect(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x      = lua_display_check_integer_arg(L, 1, "x");
     int y      = lua_display_check_integer_arg(L, 2, "y");
     int width  = lua_display_check_integer_arg(L, 3, "width");
@@ -1323,6 +1351,7 @@ static int lua_display_fill_round_rect(lua_State *L)
 
 static int lua_display_draw_triangle(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x1 = lua_display_check_integer_arg(L, 1, "x1");
     int y1 = lua_display_check_integer_arg(L, 2, "y1");
     int x2 = lua_display_check_integer_arg(L, 3, "x2");
@@ -1339,6 +1368,7 @@ static int lua_display_draw_triangle(lua_State *L)
 
 static int lua_display_fill_triangle(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x1 = lua_display_check_integer_arg(L, 1, "x1");
     int y1 = lua_display_check_integer_arg(L, 2, "y1");
     int x2 = lua_display_check_integer_arg(L, 3, "x2");
