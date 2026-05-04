@@ -27,6 +27,8 @@
 
 static const char *TAG = "lua_display";
 
+static void lua_display_ensure_frame(void);
+
 /* -------------------------------------------------------------------------
  * Argument helpers (mirrors the reference implementation)
  * ---------------------------------------------------------------------- */
@@ -372,8 +374,16 @@ static int lua_display_draw_text_aligned(lua_State *L)
  * Basic drawing
  * ---------------------------------------------------------------------- */
 
+static void lua_display_ensure_frame(void)
+{
+    if (!display_hal_is_frame_active()) {
+        display_hal_begin_frame(false, 0);
+    }
+}
+
 static int lua_display_clear(lua_State *L)
 {
+    lua_display_ensure_frame();
     uint16_t color = lua_display_color(L, 1);
     esp_err_t err = display_hal_clear(color);
     if (err != ESP_OK) {
@@ -421,6 +431,7 @@ static int lua_display_fill_rect(lua_State *L)
 
 static int lua_display_draw_pixel(lua_State *L)
 {
+    lua_display_ensure_frame();
     int x = lua_display_check_integer_arg(L, 1, "x");
     int y = lua_display_check_integer_arg(L, 2, "y");
     uint16_t color = lua_display_color(L, 3);
