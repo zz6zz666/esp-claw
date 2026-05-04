@@ -1497,6 +1497,7 @@ static esp_err_t cap_im_qq_send_media(const char *chat_id,
 static esp_err_t cap_im_qq_send_message_chunk(const char *chat_id, const char *message)
 {
     cJSON *body = cJSON_CreateObject();
+    cJSON *markdown = NULL;
     char *json_str = NULL;
     char *path = NULL;
     esp_err_t err;
@@ -1505,8 +1506,14 @@ static esp_err_t cap_im_qq_send_message_chunk(const char *chat_id, const char *m
         return ESP_ERR_NO_MEM;
     }
 
+    /* msg_type:2 with markdown wrapper — QQ renders markdown formatting */
+    markdown = cJSON_CreateObject();
+    if (markdown) {
+        cJSON_AddStringToObject(markdown, "content", message);
+        cJSON_AddItemToObject(body, "markdown", markdown);
+    }
     cJSON_AddStringToObject(body, "content", message);
-    cJSON_AddNumberToObject(body, "msg_type", 0);
+    cJSON_AddNumberToObject(body, "msg_type", 2);
     json_str = cJSON_PrintUnformatted(body);
     cJSON_Delete(body);
     if (!json_str) {
