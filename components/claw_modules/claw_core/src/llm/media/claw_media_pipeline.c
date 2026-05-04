@@ -90,7 +90,7 @@ static esp_err_t prepare_local_path_asset(const claw_media_asset_t *asset,
         *out_error_message = dup_printf("media path is empty");
         return ESP_ERR_INVALID_ARG;
     }
-    if (asset->path[0] != '/') {
+    if (asset->path[0] == '\0') {
         *out_error_message = dup_printf("media path must be an absolute path");
         return ESP_ERR_INVALID_ARG;
     }

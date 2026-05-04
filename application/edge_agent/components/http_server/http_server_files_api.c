@@ -15,7 +15,7 @@
 
 static int mkdir_parents(char *path, mode_t mode)
 {
-    if (!path || path[0] != '/') {
+    if (!path || path[0] == '\0') {
         return -1;
     }
     for (char *p = path + 1; *p; p++) {

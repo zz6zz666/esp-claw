@@ -665,7 +665,7 @@ static bool lua_display_path_is_valid(const char *path)
 {
     size_t len;
 
-    if (!path || path[0] != '/') {
+    if (!path || path[0] == '\0') {
         return false;
     }
     /* Reject path traversal */
