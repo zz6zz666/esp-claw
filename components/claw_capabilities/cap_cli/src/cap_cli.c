@@ -10,6 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32)
+# include <io.h>
+# include <fcntl.h>
+#endif
+
 #include "claw_cap.h"
 #include "cJSON.h"
 #include "esp_console.h"
@@ -208,6 +213,55 @@ static esp_err_t cap_cli_capture_run_locked(const char *command_line,
     }
     *out_stdout_text = NULL;
 
+#if defined(_WIN32)
+    /* On Windows/MinGW, open_memstream is not available.
+     * Use pipe + dup2 to capture stdout into a buffer. */
+    {
+        (void)capture; (void)saved_stdout;
+        int pipe_fds[2];
+        if (_pipe(pipe_fds, 65536, _O_BINARY) != 0) return ESP_FAIL;
+        int saved_fd = _dup(_fileno(stdout));
+        if (saved_fd < 0) { _close(pipe_fds[0]); _close(pipe_fds[1]); return ESP_FAIL; }
+        fflush(stdout);
+        if (_dup2(pipe_fds[1], _fileno(stdout)) < 0) {
+            _close(saved_fd); _close(pipe_fds[0]); _close(pipe_fds[1]);
+            return ESP_FAIL;
+        }
+
+        *out_run_err = esp_console_run(command_line, out_cmd_ret);
+
+        fflush(stdout);
+        _dup2(saved_fd, _fileno(stdout));
+        _close(saved_fd);
+        _close(pipe_fds[1]);
+
+        size_t buf_cap = 4096;
+        buffer = (char *)malloc(buf_cap);
+        if (!buffer) { _close(pipe_fds[0]); return ESP_ERR_NO_MEM; }
+        buffer_len = 0;
+        for (;;) {
+            if (buffer_len + 4096 >= buf_cap) {
+                buf_cap *= 2;
+                char *tmp = (char *)realloc(buffer, buf_cap);
+                if (!tmp) { free(buffer); _close(pipe_fds[0]); return ESP_ERR_NO_MEM; }
+                buffer = tmp;
+            }
+            int n = (int)_read(pipe_fds[0], buffer + buffer_len, (unsigned)(buf_cap - buffer_len - 1));
+            if (n <= 0) break;
+            buffer_len += (size_t)n;
+        }
+        _close(pipe_fds[0]);
+        if (buffer_len == 0) {
+            free(buffer);
+            buffer = (char *)calloc(1, 1);
+            if (!buffer) return ESP_ERR_NO_MEM;
+        } else {
+            buffer[buffer_len] = '\0';
+        }
+        *out_stdout_text = buffer;
+        return ESP_OK;
+    }
+#else
     capture = open_memstream(&buffer, &buffer_len);
     if (!capture) {
         return ESP_FAIL;
@@ -236,6 +290,7 @@ static esp_err_t cap_cli_capture_run_locked(const char *command_line,
 
     *out_stdout_text = buffer;
     return ESP_OK;
+#endif
 }
 
 static esp_err_t cap_cli_execute(const char *input_json,
