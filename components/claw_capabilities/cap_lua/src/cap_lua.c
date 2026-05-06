@@ -563,7 +563,7 @@ static esp_err_t cap_lua_write_script_execute(const char *input_json,
         return ESP_FAIL;
     }
 
-    file = fopen(resolved_path, "w");
+    file = fopen(resolved_path, "wb");
     if (!file) {
         cJSON_Delete(root);
         ESP_LOGE(TAG, "write_script: open failed path=%s errno=%d", request_path, errno);

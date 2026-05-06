@@ -495,7 +495,7 @@ esp_err_t claw_memory_load_current_items(claw_memory_item_list_t *out_list)
         return ESP_ERR_NO_MEM;
     }
 
-    file = fopen(s_memory.records_path, "r");
+    file = fopen(s_memory.records_path, "rb");
     if (!file) {
         free(line);
         free(item);
@@ -874,7 +874,7 @@ static void claw_memory_apply_digest_recall_deltas(claw_memory_item_list_t *item
         return;
     }
 
-    file = fopen(s_memory.digest_path, "r");
+    file = fopen(s_memory.digest_path, "rb");
     if (!file) {
         claw_memory_set_index_last_compact_digest_size(index_root, digest_size);
         return;

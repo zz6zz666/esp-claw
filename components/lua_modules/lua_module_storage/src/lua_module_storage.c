@@ -150,7 +150,7 @@ static int lua_module_storage_write_file(lua_State *L)
     const char *content = luaL_checklstring(L, 2, &content_len);
     FILE *file = NULL;
 
-    file = fopen(path, "w");
+    file = fopen(path, "wb");
     if (!file) {
         return luaL_error(L, "cannot open file for writing: %s", path);
     }
