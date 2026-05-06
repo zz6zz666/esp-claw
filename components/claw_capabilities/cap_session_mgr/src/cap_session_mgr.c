@@ -365,6 +365,47 @@ static esp_err_t cap_session_mgr_roll_execute(const char *input_json,
     return ESP_OK;
 }
 
+static esp_err_t cap_session_mgr_cmd_handler_execute(const char *input_json,
+                                                      const claw_cap_call_context_t *ctx,
+                                                      char *output,
+                                                      size_t output_size)
+{
+    cJSON *input = NULL;
+    const char *cmd_text = NULL;
+    const char *cmd_name = NULL;
+
+    input = cJSON_Parse(input_json);
+    if (!cJSON_IsObject(input)) {
+        cJSON_Delete(input);
+        if (output && output_size > 0) {
+            snprintf(output, output_size, "Unknown command.");
+        }
+        return ESP_OK;
+    }
+
+    cmd_text = cJSON_GetStringValue(cJSON_GetObjectItem(input, "text"));
+    if (!cmd_text || cmd_text[0] != '/') {
+        cJSON_Delete(input);
+        if (output && output_size > 0) {
+            snprintf(output, output_size, "Unknown command.");
+        }
+        return ESP_OK;
+    }
+
+    cmd_name = cmd_text + 1;
+
+    if (strcmp(cmd_name, "new") == 0) {
+        cJSON_Delete(input);
+        return cap_session_mgr_roll_execute("{}", ctx, output, output_size);
+    }
+
+    cJSON_Delete(input);
+    if (output && output_size > 0) {
+        snprintf(output, output_size, "Unknown command. Available commands: /new");
+    }
+    return ESP_OK;
+}
+
 static const claw_cap_descriptor_t s_session_mgr_caps[] = {
     {
         .id = "roll_chat_session",
@@ -375,6 +416,16 @@ static const claw_cap_descriptor_t s_session_mgr_caps[] = {
         .cap_flags = CLAW_CAP_FLAG_RESTRICTED,
         .input_schema_json = "{\"type\":\"object\",\"properties\":{}}",
         .execute = cap_session_mgr_roll_execute,
+    },
+    {
+        .id = "cmd_handler",
+        .name = "cmd_handler",
+        .family = "system",
+        .description = "Handle slash commands (/new, etc.) from IM messages.",
+        .kind = CLAW_CAP_KIND_CALLABLE,
+        .cap_flags = 0,
+        .input_schema_json = "{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"}}}",
+        .execute = cap_session_mgr_cmd_handler_execute,
     },
 };
 

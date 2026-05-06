@@ -36,6 +36,8 @@
 #include "cap_time.h"
 #endif
 
+#include "cJSON.h"
+
 static const char *TAG = "app_claw";
 static const char *APP_STARTUP_EVENT_SOURCE_CAP = "app_claw";
 static const char *APP_STARTUP_EVENT_TYPE = "startup";
@@ -196,6 +198,138 @@ static void app_time_sync_success(bool had_valid_time, void *ctx)
 }
 #endif
 
+static esp_err_t app_ensure_cmd_router_rule(const char *rules_path)
+{
+    FILE *f = NULL;
+    long len;
+    char *buf = NULL;
+    cJSON *root = NULL;
+    cJSON *item = NULL;
+    cJSON *new_rule = NULL;
+    cJSON *match = NULL;
+    cJSON *actions = NULL;
+    cJSON *act1 = NULL;
+    cJSON *act1_input = NULL;
+    cJSON *act2 = NULL;
+    cJSON *act2_input = NULL;
+    bool found = false;
+    esp_err_t err = ESP_OK;
+
+    if (!rules_path || !rules_path[0]) {
+        return ESP_OK;
+    }
+
+    f = fopen(rules_path, "rb");
+    if (!f) {
+        return ESP_OK;
+    }
+    fseek(f, 0, SEEK_END);
+    len = ftell(f);
+    if (len <= 0) {
+        fclose(f);
+        return ESP_OK;
+    }
+    fseek(f, 0, SEEK_SET);
+    buf = calloc(1, (size_t)len + 1);
+    if (!buf) {
+        fclose(f);
+        return ESP_ERR_NO_MEM;
+    }
+    if (fread(buf, 1, (size_t)len, f) != (size_t)len || buf[0] != '[') {
+        free(buf);
+        fclose(f);
+        return ESP_FAIL;
+    }
+    fclose(f);
+
+    root = cJSON_Parse(buf);
+    free(buf);
+    if (!cJSON_IsArray(root)) {
+        cJSON_Delete(root);
+        return ESP_OK;
+    }
+
+    cJSON_ArrayForEach(item, root) {
+        cJSON *m = cJSON_GetObjectItem(item, "match");
+        if (!m) continue;
+        const char *prefix = cJSON_GetStringValue(cJSON_GetObjectItem(m, "text_prefix"));
+        if (prefix && prefix[0] && strcmp(prefix, "/") == 0) {
+            found = true;
+            break;
+        }
+    }
+
+    if (found) {
+        cJSON_Delete(root);
+        return ESP_OK;
+    }
+
+    new_rule = cJSON_CreateObject();
+    match = cJSON_CreateObject();
+    actions = cJSON_CreateArray();
+    act1 = cJSON_CreateObject();
+    act1_input = cJSON_CreateObject();
+    act2 = cJSON_CreateObject();
+    act2_input = cJSON_CreateObject();
+    if (!new_rule || !match || !actions || !act1 || !act1_input || !act2 || !act2_input) {
+        cJSON_Delete(root);
+        cJSON_Delete(new_rule);
+        cJSON_Delete(match);
+        cJSON_Delete(actions);
+        cJSON_Delete(act1);
+        cJSON_Delete(act1_input);
+        cJSON_Delete(act2);
+        cJSON_Delete(act2_input);
+        return ESP_ERR_NO_MEM;
+    }
+
+    cJSON_AddStringToObject(new_rule, "id", "im_cmd_handler");
+    cJSON_AddStringToObject(new_rule, "description", "Handle slash commands like /new from IM messages.");
+    cJSON_AddTrueToObject(new_rule, "consume_on_match");
+    cJSON_AddStringToObject(match, "event_type", "message");
+    cJSON_AddStringToObject(match, "event_key", "text");
+    cJSON_AddStringToObject(match, "content_type", "text");
+    cJSON_AddStringToObject(match, "text_prefix", "/");
+    cJSON_AddItemToObject(new_rule, "match", match);
+    cJSON_AddStringToObject(act1, "type", "call_cap");
+    cJSON_AddStringToObject(act1, "cap", "cmd_handler");
+    cJSON_AddStringToObject(act1_input, "text", "{{event.text}}");
+    cJSON_AddItemToObject(act1, "input", act1_input);
+    cJSON_AddItemToArray(actions, act1);
+    cJSON_AddStringToObject(act2, "type", "send_message");
+    cJSON_AddStringToObject(act2_input, "channel", "{{event.source_channel}}");
+    cJSON_AddStringToObject(act2_input, "chat_id", "{{event.chat_id}}");
+    cJSON_AddItemToObject(act2, "input", act2_input);
+    cJSON_AddItemToArray(actions, act2);
+    cJSON_AddItemToObject(new_rule, "actions", actions);
+
+    cJSON_InsertItemInArray(root, 0, new_rule);
+
+    buf = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!buf) {
+        return ESP_ERR_NO_MEM;
+    }
+    f = fopen(rules_path, "wb");
+    if (!f) {
+        free(buf);
+        return ESP_FAIL;
+    }
+    if (fputs(buf, f) < 0) {
+        free(buf);
+        fclose(f);
+        return ESP_FAIL;
+    }
+    free(buf);
+    fclose(f);
+
+    err = claw_event_router_reload();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to reload router rules after adding cmd rule: %s", esp_err_to_name(err));
+    }
+    return ESP_OK;
+}
+
 esp_err_t app_claw_start(const app_claw_config_t *config,
                          const app_claw_storage_paths_t *paths)
 {
@@ -229,6 +363,12 @@ esp_err_t app_claw_start(const app_claw_config_t *config,
                         TAG, "Failed to configure session manager");
 #endif
     ESP_RETURN_ON_ERROR(claw_event_router_init(&router_config), TAG, "Failed to init event router");
+    {
+        esp_err_t cmd_err = app_ensure_cmd_router_rule(paths->router_rules_path);
+        if (cmd_err != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to ensure cmd router rule: %s", esp_err_to_name(cmd_err));
+        }
+    }
 #if CONFIG_APP_CLAW_CAP_SCHEDULER
     ESP_RETURN_ON_ERROR(cap_scheduler_init(&(cap_scheduler_config_t) {
                             .schedules_path = paths->scheduler_rules_path,

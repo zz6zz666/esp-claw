@@ -77,6 +77,7 @@ typedef struct {
     char chat_id[96];
     char content_type[96];
     char text[96];
+    char text_prefix[96];
 } claw_event_router_match_t;
 
 typedef struct {

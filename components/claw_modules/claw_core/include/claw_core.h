@@ -43,9 +43,10 @@ typedef struct {
 } claw_core_request_t;
 
 typedef esp_err_t (*claw_core_append_session_turn_fn)(const char *session_id,
-                                                      const char *user_text,
-                                                      const char *assistant_text,
-                                                      void *user_ctx);
+                                                       const char *user_text,
+                                                       const char *assistant_text,
+                                                       const char *tool_trace_json,
+                                                       void *user_ctx);
 
 typedef esp_err_t (*claw_core_request_start_fn)(const claw_core_request_t *request,
                                                 void *user_ctx);

@@ -1311,10 +1311,16 @@ static void claw_core_task(void *arg)
             if (response.view.text[0] &&
                     s_core->append_session_turn &&
                     request.view.session_id && request.view.session_id[0]) {
+                char *trace_json = (runtime_messages &&
+                                    cJSON_GetArraySize(runtime_messages) > 0)
+                                       ? cJSON_PrintUnformatted(runtime_messages) : NULL;
+
                 err = s_core->append_session_turn(request.view.session_id,
-                                                 request.view.user_text,
-                                                 response.view.text,
-                                                 s_core->append_session_turn_user_ctx);
+                                                  request.view.user_text,
+                                                  response.view.text,
+                                                  trace_json,
+                                                  s_core->append_session_turn_user_ctx);
+                free(trace_json);
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "append_session_turn failed: %s", esp_err_to_name(err));
                 }
@@ -1367,6 +1373,7 @@ finish_request:
                     esp_err_t append_err = s_core->append_session_turn(request.view.session_id,
                                                                        request.view.user_text,
                                                                        failure_trace,
+                                                                       NULL,
                                                                        s_core->append_session_turn_user_ctx);
                     if (append_err != ESP_OK) {
                         ESP_LOGW(TAG, "append_session_turn failed for failed request=%" PRIu32 ": %s",

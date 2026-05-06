@@ -712,6 +712,9 @@ static esp_err_t claw_event_router_parse_rule(const cJSON *item,
     strlcpy(out_rule->match.text,
             claw_event_router_json_string_or_empty(match, "text"),
             sizeof(out_rule->match.text));
+    strlcpy(out_rule->match.text_prefix,
+            claw_event_router_json_string_or_empty(match, "text_prefix"),
+            sizeof(out_rule->match.text_prefix));
 
     if (vars) {
         out_rule->vars_json = cJSON_PrintUnformatted(vars);
@@ -874,6 +877,9 @@ static cJSON *claw_event_router_rule_to_json(const claw_event_router_rule_t *rul
     }
     if (rule->match.text[0]) {
         cJSON_AddStringToObject(match, "text", rule->match.text);
+    }
+    if (rule->match.text_prefix[0]) {
+        cJSON_AddStringToObject(match, "text_prefix", rule->match.text_prefix);
     }
 
     for (size_t i = 0; i < rule->action_count; i++) {
@@ -1074,6 +1080,23 @@ static bool claw_event_router_match_field(const char *expected, const char *actu
     return !expected || !expected[0] || strcmp(expected, actual ? actual : "") == 0;
 }
 
+static bool claw_event_router_match_text_field(const claw_event_router_match_t *match,
+                                                const char *actual)
+{
+    if (!actual) {
+        actual = "";
+    }
+    if (match->text_prefix[0]) {
+        if (strncmp(match->text_prefix, actual, strlen(match->text_prefix)) == 0) {
+            return true;
+        }
+    }
+    if (match->text[0]) {
+        return strcmp(match->text, actual) == 0;
+    }
+    return !match->text[0] && !match->text_prefix[0];
+}
+
 static bool claw_event_router_rule_matches(const claw_event_router_rule_t *rule,
                                            const claw_event_t *event)
 {
@@ -1084,7 +1107,7 @@ static bool claw_event_router_rule_matches(const claw_event_router_rule_t *rule,
            claw_event_router_match_field(rule->match.channel, event->source_channel) &&
            claw_event_router_match_field(rule->match.chat_id, event->chat_id) &&
            claw_event_router_match_field(rule->match.content_type, event->content_type) &&
-           claw_event_router_match_field(rule->match.text, event->text);
+           claw_event_router_match_text_field(&rule->match, event->text);
 }
 
 static cJSON *claw_event_router_build_event_context(const claw_event_t *event)
