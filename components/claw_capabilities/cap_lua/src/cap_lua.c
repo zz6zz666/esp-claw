@@ -184,7 +184,7 @@ static bool cap_lua_has_lua_suffix(const char *path)
 
 static bool cap_lua_abs_dir_is_valid(const char *dir)
 {
-    return dir && dir[0] == '/' && strstr(dir, "..") == NULL;
+    return dir && dir[0] != '\0' && strstr(dir, "..") == NULL;
 }
 
 static bool cap_lua_relative_path_is_valid(const char *path)
@@ -1054,7 +1054,7 @@ static const claw_cap_group_t s_lua_group = {
 
 esp_err_t cap_lua_register_group(const char *base_dir)
 {
-    if (!base_dir || base_dir[0] != '/') {
+    if (!base_dir || base_dir[0] == '\0') {
         ESP_LOGE(TAG, "register_group: bad base_dir");
         return ESP_ERR_INVALID_ARG;
     }

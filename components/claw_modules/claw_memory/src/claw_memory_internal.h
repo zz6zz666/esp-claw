@@ -16,6 +16,9 @@
 
 #define CLAW_MEMORY_DEFAULT_MAX_SESSION_MESSAGES 20
 #define CLAW_MEMORY_DEFAULT_MAX_MESSAGE_CHARS    4096
+#define CLAW_MEMORY_DEFAULT_CONTEXT_TOKEN_BUDGET 96256
+#define CLAW_MEMORY_DEFAULT_COMPRESS_THRESHOLD_PERCENT 80
+#define CLAW_MEMORY_COMPRESS_SUMMARY_MAX_CHARS 2048
 #define CLAW_MEMORY_MAX_PATH                     192
 #define CLAW_MEMORY_MAX_SUMMARIES                3
 #define CLAW_MEMORY_MAX_LABEL_CHARS              8
@@ -50,8 +53,13 @@ typedef struct {
     char user_path[CLAW_MEMORY_MAX_PATH];
     size_t max_session_messages;
     size_t max_message_chars;
+    uint32_t context_token_budget;
+    uint32_t compress_threshold_percent;
     uint32_t write_changes_since_compact;
     uint32_t next_memory_seq;
+    claw_memory_llm_config_t llm_cfg;
+    claw_memory_compress_notify_fn compress_notify_cb;
+    void *compress_notify_ctx;
 } claw_memory_state_t;
 
 typedef struct {
@@ -165,3 +173,6 @@ esp_err_t claw_memory_sync_markdown(const claw_memory_item_list_t *items, cJSON 
 esp_err_t claw_memory_compact_internal(bool append_digest);
 esp_err_t claw_memory_maybe_compact(void);
 esp_err_t claw_memory_profile_init_defaults(void);
+
+esp_err_t claw_memory_session_compress_to(const char *session_id, const char *target_session_id);
+bool claw_memory_session_estimate_compress(const char *session_id);

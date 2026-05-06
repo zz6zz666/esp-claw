@@ -288,6 +288,21 @@ esp_err_t claw_memory_init(const claw_memory_config_t *config)
         config->max_session_messages : CLAW_MEMORY_DEFAULT_MAX_SESSION_MESSAGES;
     s_memory.max_message_chars = config->max_message_chars ?
         config->max_message_chars : CLAW_MEMORY_DEFAULT_MAX_MESSAGE_CHARS;
+    s_memory.context_token_budget = config->context_token_budget ?
+        config->context_token_budget : CLAW_MEMORY_DEFAULT_CONTEXT_TOKEN_BUDGET;
+    s_memory.compress_threshold_percent = config->compress_threshold_percent ?
+        config->compress_threshold_percent : CLAW_MEMORY_DEFAULT_COMPRESS_THRESHOLD_PERCENT;
+
+    /* Save LLM config for compression */
+    s_memory.llm_cfg.api_key = strdup(config->llm.api_key ? config->llm.api_key : "");
+    s_memory.llm_cfg.backend_type = strdup(config->llm.backend_type ? config->llm.backend_type : "");
+    s_memory.llm_cfg.profile = strdup(config->llm.profile ? config->llm.profile : "");
+    s_memory.llm_cfg.model = strdup(config->llm.model ? config->llm.model : "");
+    s_memory.llm_cfg.base_url = strdup(config->llm.base_url ? config->llm.base_url : "");
+    s_memory.llm_cfg.auth_type = strdup(config->llm.auth_type ? config->llm.auth_type : "");
+    s_memory.llm_cfg.timeout_ms = config->llm.timeout_ms;
+    s_memory.llm_cfg.max_tokens = config->llm.max_tokens;
+    s_memory.llm_cfg.image_max_bytes = config->llm.image_max_bytes;
     s_memory.next_memory_seq = claw_memory_now_sec() % 10000U;
 
     if (claw_memory_join_path(s_memory.markdown_path,
@@ -336,6 +351,13 @@ esp_err_t claw_memory_init(const claw_memory_config_t *config)
     claw_memory_compact_internal(false);
     ESP_LOGI(TAG, "Initialized memory root=%s", s_memory.memory_root_dir);
     return ESP_OK;
+}
+
+void claw_memory_set_compress_notify_callback(claw_memory_compress_notify_fn fn,
+                                              void *user_ctx)
+{
+    s_memory.compress_notify_cb = fn;
+    s_memory.compress_notify_ctx = user_ctx;
 }
 
 esp_err_t claw_memory_store(const claw_memory_item_t *item)

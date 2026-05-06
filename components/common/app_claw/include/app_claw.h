@@ -30,6 +30,9 @@ typedef struct {
     char llm_auth_type[APP_CLAW_SHORT_STR_LEN];
     char llm_timeout_ms[APP_CLAW_TIMEOUT_LEN];
     char llm_max_tokens[APP_CLAW_TIMEOUT_LEN];
+    char session_context_token_budget[APP_CLAW_TIMEOUT_LEN];
+    char session_max_message_chars[APP_CLAW_TIMEOUT_LEN];
+    char session_compress_threshold_percent[APP_CLAW_TIMEOUT_LEN];
     char qq_app_id[APP_CLAW_SHORT_STR_LEN];
     char qq_app_secret[APP_CLAW_STR_LEN];
     char feishu_app_id[APP_CLAW_MODEL_LEN];

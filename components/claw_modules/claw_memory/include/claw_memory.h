@@ -33,6 +33,8 @@ typedef struct {
     const char *memory_root_dir;
     size_t max_session_messages;
     size_t max_message_chars;
+    uint32_t context_token_budget;
+    uint32_t compress_threshold_percent;
     claw_memory_llm_config_t llm;
     bool enable_async_extract_stage_note;
 } claw_memory_config_t;
@@ -72,21 +74,32 @@ esp_err_t claw_memory_list(char **out_json);
 esp_err_t claw_memory_session_append(const char *session_id,
                                      const char *user_text,
                                      const char *assistant_text);
+esp_err_t claw_memory_session_append_with_trace(const char *session_id,
+                                                 const char *user_text,
+                                                 const char *assistant_text,
+                                                 const char *tool_trace_json);
 esp_err_t claw_memory_note_session_summary(const char *session_id,
                                            const char *summary_list);
 esp_err_t claw_memory_item_primary_summary_label(const claw_memory_item_t *item,
                                                  char *buf,
                                                  size_t size);
 esp_err_t claw_memory_append_session_turn_callback(const char *session_id,
-                                                   const char *user_text,
-                                                   const char *assistant_text,
-                                                   void *user_ctx);
+                                                    const char *user_text,
+                                                    const char *assistant_text,
+                                                    const char *tool_trace_json,
+                                                    void *user_ctx);
+esp_err_t claw_memory_session_compress(const char *session_id);
+esp_err_t claw_memory_session_compress_to(const char *session_id, const char *target_session_id);
 esp_err_t claw_memory_request_start_callback(const claw_core_request_t *request,
                                              void *user_ctx);
 esp_err_t claw_memory_request_mark_manual_write(uint32_t request_id);
 esp_err_t claw_memory_stage_note_callback(const claw_core_request_t *request,
                                           char **out_note,
                                           void *user_ctx);
+
+typedef void (*claw_memory_compress_notify_fn)(const char *message, void *user_ctx);
+void claw_memory_set_compress_notify_callback(claw_memory_compress_notify_fn fn,
+                                              void *user_ctx);
 
 extern const claw_core_context_provider_t claw_memory_profile_provider;
 extern const claw_core_context_provider_t claw_memory_long_term_provider;

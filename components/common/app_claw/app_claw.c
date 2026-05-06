@@ -89,6 +89,12 @@ esp_err_t app_claw_set_network_status(bool sta_connected, const char *ap_ssid)
 #endif
 }
 
+static void app_compress_notify(const char *message, void *user_ctx)
+{
+    (void)user_ctx;
+    ESP_LOGI(TAG, "[NOTIFY] %s", message ? message : "");
+}
+
 static esp_err_t init_memory(const app_claw_config_t *config,
                              const app_claw_storage_paths_t *paths)
 {
@@ -96,7 +102,9 @@ static esp_err_t init_memory(const app_claw_config_t *config,
         .session_root_dir = paths->memory_session_root,
         .memory_root_dir = paths->memory_root_dir,
         .max_session_messages = 20,
-        .max_message_chars = 4096,
+        .max_message_chars = (size_t)strtoul(config->session_max_message_chars, NULL, 10),
+        .context_token_budget = (uint32_t)strtoul(config->session_context_token_budget, NULL, 10),
+        .compress_threshold_percent = (uint32_t)strtoul(config->session_compress_threshold_percent, NULL, 10),
         .llm = {
             .api_key = config->llm_api_key,
             .backend_type = config->llm_backend_type,
@@ -284,7 +292,7 @@ static esp_err_t app_ensure_cmd_router_rule(const char *rules_path)
     }
 
     cJSON_AddStringToObject(new_rule, "id", "im_cmd_handler");
-    cJSON_AddStringToObject(new_rule, "description", "Handle slash commands like /new from IM messages.");
+    cJSON_AddStringToObject(new_rule, "description", "Handle slash commands like /new, /compact from IM messages.");
     cJSON_AddTrueToObject(new_rule, "consume_on_match");
     cJSON_AddStringToObject(match, "event_type", "message");
     cJSON_AddStringToObject(match, "event_key", "text");
@@ -383,6 +391,7 @@ esp_err_t app_claw_start(const app_claw_config_t *config,
                         TAG, "Failed to init scheduler");
 #endif
     ESP_RETURN_ON_ERROR(init_memory(config, paths), TAG, "Failed to init memory");
+    claw_memory_set_compress_notify_callback(app_compress_notify, NULL);
     ESP_RETURN_ON_ERROR(init_skills(paths), TAG, "Failed to init skills");
     ESP_RETURN_ON_ERROR(app_capabilities_init(config, paths), TAG, "Failed to init capabilities");
 #if CONFIG_APP_CLAW_CAP_IM_QQ

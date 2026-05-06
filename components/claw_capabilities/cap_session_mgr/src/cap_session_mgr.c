@@ -15,6 +15,7 @@
 
 #include "cJSON.h"
 #include "claw_cap.h"
+#include "claw_memory.h"
 #include "esp_log.h"
 #include "freertos/semphr.h"
 
@@ -399,9 +400,63 @@ static esp_err_t cap_session_mgr_cmd_handler_execute(const char *input_json,
         return cap_session_mgr_roll_execute("{}", ctx, output, output_size);
     }
 
+    if (strcmp(cmd_name, "compact") == 0) {
+        char old_id[CAP_SESSION_MGR_ID_SIZE];
+        char new_id[CAP_SESSION_MGR_ID_SIZE];
+        int version = 0;
+        esp_err_t err;
+
+        cJSON_Delete(input);
+
+        if (!ctx || !ctx->channel || !ctx->channel[0] || !ctx->chat_id || !ctx->chat_id[0]) {
+            if (output && output_size > 0) {
+                snprintf(output, output_size,
+                    "Compression failed: missing channel/chat context.");
+            }
+            return ESP_ERR_INVALID_ARG;
+        }
+
+        xSemaphoreTakeRecursive(s_session_mgr.mutex, portMAX_DELAY);
+        err = cap_session_mgr_build_current_session_id_locked(
+            ctx->channel, ctx->chat_id, old_id, sizeof(old_id));
+        if (err == ESP_OK) {
+            err = cap_session_mgr_roll_locked(
+                ctx->channel, ctx->chat_id, new_id, sizeof(new_id), &version);
+        }
+        xSemaphoreGiveRecursive(s_session_mgr.mutex);
+
+        if (err != ESP_OK) {
+            if (output && output_size > 0) {
+                snprintf(output, output_size,
+                    "Session compression failed: %s", esp_err_to_name(err));
+            }
+            return err;
+        }
+
+        ESP_LOGI(TAG, "Session compression started: %s -> %s", old_id, new_id);
+        if (output && output_size > 0) {
+            snprintf(output, output_size, "Session compression started...");
+        }
+
+        err = claw_memory_session_compress_to(old_id, new_id);
+        if (err != ESP_OK) {
+            if (output && output_size > 0) {
+                snprintf(output, output_size,
+                    "Session compression failed: %s", esp_err_to_name(err));
+            }
+            return err;
+        }
+
+        ESP_LOGI(TAG, "Session compression complete: %s -> %s", old_id, new_id);
+        if (output && output_size > 0) {
+            snprintf(output, output_size, "Session compression complete.");
+        }
+        return ESP_OK;
+    }
+
     cJSON_Delete(input);
     if (output && output_size > 0) {
-        snprintf(output, output_size, "Unknown command. Available commands: /new");
+        snprintf(output, output_size, "Unknown command. Available commands: /new, /compact");
     }
     return ESP_OK;
 }
@@ -421,7 +476,7 @@ static const claw_cap_descriptor_t s_session_mgr_caps[] = {
         .id = "cmd_handler",
         .name = "cmd_handler",
         .family = "system",
-        .description = "Handle slash commands (/new, etc.) from IM messages.",
+        .description = "Handle slash commands (/new, /compact) from IM messages.",
         .kind = CLAW_CAP_KIND_CALLABLE,
         .cap_flags = 0,
         .input_schema_json = "{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"}}}",
