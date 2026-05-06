@@ -413,7 +413,15 @@ static esp_err_t cap_im_qq_get_access_token(void)
     config.user_data = &resp;
     config.timeout_ms = 15000;
     config.buffer_size = 1024;
+#if CONFIG_HTTP_REUSE_ENABLE
+    /*
+     * With HTTP reuse, keep buffer_size / buffer_size_tx consistent across pooled
+     * clients; esp_http_client has no API to resize RX or TX buffers after init.
+     */
+    config.buffer_size_tx = 2048;
+#else
     config.buffer_size_tx = 1024;
+#endif
     config.crt_bundle_attach = esp_crt_bundle_attach;
 
     client = esp_http_client_init(&config);
@@ -498,6 +506,13 @@ retry:
     config.user_data = &resp;
     config.timeout_ms = 10000;
     config.buffer_size = 1024;
+#if CONFIG_HTTP_REUSE_ENABLE
+    /*
+     * With HTTP reuse, keep buffer_size / buffer_size_tx consistent across pooled
+     * clients; esp_http_client has no API to resize RX or TX buffers after init.
+     */
+    config.buffer_size_tx = 2048;
+#endif
     config.crt_bundle_attach = esp_crt_bundle_attach;
 
     client = esp_http_client_init(&config);

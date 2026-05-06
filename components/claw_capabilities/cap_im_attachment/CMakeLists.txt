@@ -5,6 +5,7 @@ idf_component_register(
         "include"
     REQUIRES
         esp_http_client
+        http_reuse
         mbedtls
         json
 )

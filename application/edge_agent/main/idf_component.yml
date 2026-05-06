@@ -1,7 +1,7 @@
 ## IDF Component Manager Manifest File
 dependencies:
   espressif/esp_board_manager:
-    version: "^0.5.7"
+    version: "^0.5.9"
     public: true
   espressif/esp_wifi_remote:
     version: ">=0.10,<2.0"
@@ -36,6 +36,9 @@ dependencies:
     path: ../../../components/common/emote
     rules:
       - if: $CONFIG{ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT} == True
+
+  http_reuse:
+    path: ../../../components/common/http_reuse
 
   http_server:
     path: ../components/http_server

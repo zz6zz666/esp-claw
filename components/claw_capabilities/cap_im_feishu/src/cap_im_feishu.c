@@ -94,6 +94,24 @@ typedef struct {
 } cap_im_feishu_attachment_job_t;
 
 typedef struct {
+    const char *chat_id;
+    const char *message_id;
+    const char *attachment_kind;
+    const char *original_filename;
+    char *saved_dir;
+    size_t saved_dir_size;
+    char *saved_name;
+    size_t saved_name_size;
+    char *saved_path;
+    size_t saved_path_size;
+} cap_im_feishu_attachment_path_t;
+
+typedef struct {
+    char *mime_buf;
+    size_t mime_buf_size;
+} cap_im_feishu_download_ctx_t;
+
+typedef struct {
     char app_id[CAP_IM_FEISHU_APP_ID_LEN];
     char app_secret[CAP_IM_FEISHU_APP_SECRET_LEN];
     char tenant_token[CAP_IM_FEISHU_TOKEN_LEN];
@@ -1221,16 +1239,115 @@ static esp_err_t cap_im_feishu_extract_attachment_fields(const char *message_typ
     return ESP_OK;
 }
 
+static esp_err_t cap_im_feishu_build_attachment_path(cap_im_feishu_attachment_path_t *path,
+                                                     const char *mime)
+{
+    const char *original_basename = "";
+    const char *original_ext = NULL;
+    const char *extension = NULL;
+    esp_err_t err;
+
+    if (!path || !path->chat_id || !path->message_id || !path->attachment_kind ||
+            !path->saved_dir || !path->saved_name || !path->saved_path) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (path->original_filename && path->original_filename[0]) {
+        original_basename = cap_im_feishu_basename(path->original_filename);
+        original_ext = strrchr(original_basename, '.');
+    }
+
+    extension = cap_im_attachment_guess_extension(NULL,
+                                                  original_basename[0] ? original_basename : NULL,
+                                                  mime);
+    err = cap_im_attachment_build_saved_paths(s_feishu.attachment_root_dir,
+                                              "feishu",
+                                              path->chat_id,
+                                              path->message_id,
+                                              path->attachment_kind,
+                                              extension,
+                                              path->saved_dir,
+                                              path->saved_dir_size,
+                                              path->saved_name,
+                                              path->saved_name_size,
+                                              path->saved_path,
+                                              path->saved_path_size);
+    if (err != ESP_OK || !original_basename[0]) {
+        return err;
+    }
+
+    if (original_ext && original_ext[1]) {
+        int written = snprintf(path->saved_name,
+                               path->saved_name_size,
+                               "feishu_%08" PRIx32 "_%s",
+                               (uint32_t)cap_im_feishu_fnv1a64(path->message_id),
+                               original_basename);
+
+        if (written < 0 || (size_t)written >= path->saved_name_size) {
+            return ESP_ERR_INVALID_SIZE;
+        }
+    } else {
+        int written = snprintf(path->saved_name,
+                               path->saved_name_size,
+                               "feishu_%08" PRIx32 "_%s%s",
+                               (uint32_t)cap_im_feishu_fnv1a64(path->message_id),
+                               original_basename,
+                               strcmp(path->attachment_kind, "image") == 0 ? extension : "");
+
+        if (written < 0 || (size_t)written >= path->saved_name_size) {
+            return ESP_ERR_INVALID_SIZE;
+        }
+    }
+
+    {
+        int written = snprintf(path->saved_path,
+                               path->saved_path_size,
+                               "%s/%s",
+                               path->saved_dir,
+                               path->saved_name);
+
+        if (written < 0 || (size_t)written >= path->saved_path_size) {
+            return ESP_ERR_INVALID_SIZE;
+        }
+    }
+
+    return ESP_OK;
+}
+
+static esp_err_t cap_im_feishu_download_event_handler(esp_http_client_event_t *event)
+{
+    cap_im_feishu_download_ctx_t *ctx = (cap_im_feishu_download_ctx_t *)event->user_data;
+    char *separator = NULL;
+
+    if (!ctx || !ctx->mime_buf || ctx->mime_buf_size == 0 ||
+            event->event_id != HTTP_EVENT_ON_HEADER ||
+            !event->header_key || !event->header_value ||
+            strcasecmp(event->header_key, "Content-Type") != 0) {
+        return ESP_OK;
+    }
+
+    strlcpy(ctx->mime_buf, event->header_value, ctx->mime_buf_size);
+    separator = strchr(ctx->mime_buf, ';');
+    if (separator) {
+        *separator = '\0';
+    }
+    return ESP_OK;
+}
+
 static esp_err_t cap_im_feishu_download_attachment(const char *message_id,
                                                    const char *resource_key,
                                                    const char *resource_type,
-                                                   const char *saved_path,
+                                                   cap_im_feishu_attachment_path_t *path,
                                                    char *mime_buf,
                                                    size_t mime_buf_size,
                                                    size_t *out_bytes)
 {
     esp_http_client_config_t config = {0};
     esp_http_client_handle_t client = NULL;
+    cap_im_feishu_download_ctx_t download_ctx = {
+        .mime_buf = mime_buf,
+        .mime_buf_size = mime_buf_size,
+    };
     char auth_header[CAP_IM_FEISHU_TOKEN_LEN + 16];
     char url[CAP_IM_FEISHU_URL_LEN];
     FILE *file = NULL;
@@ -1246,7 +1363,7 @@ static esp_err_t cap_im_feishu_download_attachment(const char *message_id,
     if (out_bytes) {
         *out_bytes = 0;
     }
-    if (!message_id || !resource_key || !resource_type || !saved_path) {
+    if (!message_id || !resource_key || !resource_type || !path) {
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -1273,6 +1390,8 @@ static esp_err_t cap_im_feishu_download_attachment(const char *message_id,
     config.buffer_size = sizeof(read_buf);
     config.buffer_size_tx = 1024;
     config.crt_bundle_attach = esp_crt_bundle_attach;
+    config.event_handler = cap_im_feishu_download_event_handler;
+    config.user_data = &download_ctx;
 
     client = esp_http_client_init(&config);
     if (!client) {
@@ -1331,21 +1450,37 @@ static esp_err_t cap_im_feishu_download_attachment(const char *message_id,
         return ESP_ERR_INVALID_SIZE;
     }
 
-    err = cap_im_feishu_ensure_parent_dirs(saved_path);
+    if (mime_buf && mime_buf_size > 0 && strcmp(resource_type, "file") == 0 && !mime_buf[0]) {
+        strlcpy(mime_buf, "application/octet-stream", mime_buf_size);
+    }
+
+    err = cap_im_feishu_build_attachment_path(path, mime_buf && mime_buf[0] ? mime_buf : NULL);
     if (err != ESP_OK) {
         ESP_LOGW(TAG,
-                 "Feishu attachment ensure dir failed message=%s path=%s err=%s",
+                 "Feishu attachment path build failed message=%s kind=%s err=%s",
                  message_id,
-                 saved_path,
+                 resource_type,
                  esp_err_to_name(err));
         esp_http_client_close(client);
         esp_http_client_cleanup(client);
         return err;
     }
 
-    file = fopen(saved_path, "wb");
+    err = cap_im_feishu_ensure_parent_dirs(path->saved_path);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG,
+                 "Feishu attachment ensure dir failed message=%s path=%s err=%s",
+                 message_id,
+                 path->saved_path,
+                 esp_err_to_name(err));
+        esp_http_client_close(client);
+        esp_http_client_cleanup(client);
+        return err;
+    }
+
+    file = fopen(path->saved_path, "wb");
     if (!file) {
-        ESP_LOGW(TAG, "Feishu attachment open file failed path=%s errno=%d", saved_path, errno);
+        ESP_LOGW(TAG, "Feishu attachment open file failed path=%s errno=%d", path->saved_path, errno);
         esp_http_client_close(client);
         esp_http_client_cleanup(client);
         return ESP_FAIL;
@@ -1383,7 +1518,7 @@ static esp_err_t cap_im_feishu_download_attachment(const char *message_id,
         if (fwrite(read_buf, 1, (size_t)read_len, file) != (size_t)read_len) {
             ESP_LOGW(TAG,
                      "Feishu attachment fwrite failed path=%s errno=%d bytes=%u",
-                     saved_path,
+                     path->saved_path,
                      errno,
                      (unsigned)total_bytes);
             err = ESP_FAIL;
@@ -1401,16 +1536,8 @@ static esp_err_t cap_im_feishu_download_attachment(const char *message_id,
                  resource_type,
                  esp_err_to_name(err != ESP_OK ? err : ESP_FAIL),
                  (unsigned)total_bytes);
-        remove(saved_path);
+        remove(path->saved_path);
         return err != ESP_OK ? err : ESP_FAIL;
-    }
-
-    if (mime_buf && mime_buf_size > 0 && !mime_buf[0]) {
-        if (strcmp(resource_type, "image") == 0) {
-            strlcpy(mime_buf, "image/jpeg", mime_buf_size);
-        } else if (strcmp(resource_type, "file") == 0) {
-            strlcpy(mime_buf, "application/octet-stream", mime_buf_size);
-        }
     }
 
     if (out_bytes) {
@@ -1431,8 +1558,19 @@ static esp_err_t cap_im_feishu_save_attachment(const char *chat_id,
     char saved_dir[CAP_IM_FEISHU_PATH_LEN];
     char saved_name[CAP_IM_FEISHU_NAME_LEN];
     char saved_path[CAP_IM_FEISHU_PATH_LEN];
+    cap_im_feishu_attachment_path_t path = {
+        .chat_id = chat_id,
+        .message_id = message_id,
+        .attachment_kind = attachment_kind,
+        .original_filename = original_filename,
+        .saved_dir = saved_dir,
+        .saved_dir_size = sizeof(saved_dir),
+        .saved_name = saved_name,
+        .saved_name_size = sizeof(saved_name),
+        .saved_path = saved_path,
+        .saved_path_size = sizeof(saved_path),
+    };
     char mime[64] = {0};
-    const char *extension = NULL;
     char *payload_json = NULL;
     size_t bytes = 0;
     esp_err_t err;
@@ -1441,55 +1579,10 @@ static esp_err_t cap_im_feishu_save_attachment(const char *chat_id,
         return ESP_ERR_INVALID_ARG;
     }
 
-    if ((!original_filename || !original_filename[0]) && strcmp(attachment_kind, "image") == 0) {
-        extension = ".jpg";
-    } else {
-        extension = cap_im_attachment_guess_extension(NULL,
-                                                      original_filename && original_filename[0] ? original_filename : NULL,
-                                                      NULL);
-    }
-    err = cap_im_attachment_build_saved_paths(s_feishu.attachment_root_dir,
-                                              "feishu",
-                                              chat_id,
-                                              message_id,
-                                              attachment_kind,
-                                              extension,
-                                              saved_dir,
-                                              sizeof(saved_dir),
-                                              saved_name,
-                                              sizeof(saved_name),
-                                              saved_path,
-                                              sizeof(saved_path));
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    if (original_filename && original_filename[0]) {
-        const char *original_basename = cap_im_feishu_basename(original_filename);
-        uint64_t message_hash = cap_im_feishu_fnv1a64(message_id);
-        int written;
-
-        if (original_basename[0]) {
-            written = snprintf(saved_name,
-                               sizeof(saved_name),
-                               "feishu_%08" PRIx32 "_%s",
-                               (uint32_t)message_hash,
-                               original_basename);
-            if (written < 0 || (size_t)written >= sizeof(saved_name)) {
-                return ESP_ERR_INVALID_SIZE;
-            }
-
-            written = snprintf(saved_path, sizeof(saved_path), "%s/%s", saved_dir, saved_name);
-            if (written < 0 || (size_t)written >= sizeof(saved_path)) {
-                return ESP_ERR_INVALID_SIZE;
-            }
-        }
-    }
-
     err = cap_im_feishu_download_attachment(message_id,
                                             resource_key,
                                             attachment_kind,
-                                            saved_path,
+                                            &path,
                                             mime,
                                             sizeof(mime),
                                             &bytes);
@@ -1898,7 +1991,7 @@ static esp_err_t cap_im_feishu_post_append_element(cap_im_feishu_resp_t *markdow
         }
         snprintf(image_filename,
                  sizeof(image_filename),
-                 "image_%08" PRIx32 ".jpg",
+                 "image_%08" PRIx32,
                  (uint32_t)cap_im_feishu_fnv1a64(key));
         cap_im_feishu_queue_post_attachment(chat_id, sender_id, message_id, "image", key, image_filename);
         if ((err = cap_im_feishu_resp_append(markdown,

@@ -9,6 +9,7 @@ idf_component_register(
         claw_event_router
         esp_event
         esp_http_client
+        http_reuse
         esp_timer
         esp_websocket_client
         freertos

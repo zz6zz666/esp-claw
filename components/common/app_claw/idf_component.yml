@@ -1,4 +1,7 @@
 dependencies:
+  cap_boards:
+    path: ../../claw_capabilities/cap_boards
+
   cap_files:
     rules:
       - if: $CONFIG{APP_CLAW_CAP_FILES} == True
@@ -6,7 +9,9 @@ dependencies:
 
   cap_im_attachment:
     rules:
-      - if: $CONFIG{APP_CLAW_CAP_IM_QQ} == True || $CONFIG{APP_CLAW_CAP_IM_FEISHU} == True || $CONFIG{APP_CLAW_CAP_IM_TG} == True || $CONFIG{APP_CLAW_CAP_IM_WECHAT} == True
+      - if: >-
+          $CONFIG{APP_CLAW_CAP_IM_QQ} == True || $CONFIG{APP_CLAW_CAP_IM_FEISHU} == True ||
+          $CONFIG{APP_CLAW_CAP_IM_TG} == True || $CONFIG{APP_CLAW_CAP_IM_WECHAT} == True
     path: ../../claw_capabilities/cap_im_attachment
 
   cap_im_feishu:
@@ -104,6 +109,12 @@ dependencies:
   claw_skill:
     path: ../../claw_modules/claw_skill
 
+  skill_builder:
+    path: ../../common/skill_builder
+
+  lua_module_builder:
+    path: ../../common/lua_module_builder
+
   emote:
     rules:
       - if: $CONFIG{ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT} == True
@@ -164,12 +175,6 @@ dependencies:
       - if: $CONFIG{APP_CLAW_CAP_LUA} == True
       - if: $CONFIG{APP_CLAW_LUA_MODULE_ADC} == True
     path: ../../lua_modules/lua_module_adc
-
-  lua_module_dht:
-    rules:
-      - if: $CONFIG{APP_CLAW_CAP_LUA} == True
-      - if: $CONFIG{APP_CLAW_LUA_MODULE_DHT} == True
-    path: ../../lua_modules/lua_module_dht
 
   lua_module_call_capability:
     rules:

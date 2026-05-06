@@ -9,6 +9,7 @@ idf_component_register(
         claw_cap
         claw_event_router
         esp_http_client
+        http_reuse
         esp_event
         esp_timer
         esp_websocket_client
