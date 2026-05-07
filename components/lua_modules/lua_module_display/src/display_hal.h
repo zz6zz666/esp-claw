@@ -68,6 +68,10 @@ esp_err_t display_hal_present(void);
 esp_err_t display_hal_present_rect(int x, int y, int width, int height);
 esp_err_t display_hal_end_frame(void);
 bool display_hal_is_frame_active(void);
+
+/* --- Main loop control --- */
+void display_hal_wake_main_loop(void);
+void display_hal_main_loop_wait(uint32_t timeout_ms);
 esp_err_t display_hal_get_animation_info(display_hal_animation_info_t *info);
 
 /* --- Drawing primitives --- */

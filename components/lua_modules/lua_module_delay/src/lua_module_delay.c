@@ -15,6 +15,12 @@
 
 #define LUA_MODULE_DELAY_US_MAX_BLOCKING 1000000U
 
+#ifdef __linux__
+#include <time.h>
+#elif _WIN32
+#include <windows.h>
+#endif
+
 static int lua_module_delay_sleep_ms(lua_State *L)
 {
     lua_Integer ms = luaL_checkinteger(L, 1);
@@ -23,7 +29,27 @@ static int lua_module_delay_sleep_ms(lua_State *L)
         ms = 0;
     }
 
+#ifdef __linux__
+    /* Use nanosleep for precise millisecond delay on Linux */
+    struct timespec req, rem;
+    req.tv_sec = (time_t)(ms / 1000);
+    req.tv_nsec = (long)((ms % 1000) * 1000000);
+    while (nanosleep(&req, &rem) == -1 && errno == EINTR) {
+        req = rem;
+    }
+#elif _WIN32
+    /* Use QueryPerformanceCounter for high-precision timing on Windows */
+    LARGE_INTEGER freq, start, end;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&start);
+    uint64_t target_ticks = (uint64_t)ms * freq.QuadPart / 1000;
+    do {
+        QueryPerformanceCounter(&end);
+    } while ((end.QuadPart - start.QuadPart) < target_ticks);
+#else
+    /* Fallback to vTaskDelay for embedded targets */
     vTaskDelay(pdMS_TO_TICKS((uint32_t)ms));
+#endif
     return 0;
 }
 
