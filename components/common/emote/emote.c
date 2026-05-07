@@ -19,6 +19,8 @@
 
 static const char *TAG = "app_emote";
 
+static char s_network_msg[64];
+
 #define EMOTE_ASSETS_PARTITION "emote"
 
 static esp_lcd_panel_io_handle_t s_io_handle;
@@ -171,6 +173,16 @@ static esp_err_t emote_apply(const char *idle, const char *msg)
     return ESP_OK;
 }
 
+void emote_set_network_msg(const char *msg)
+{
+    if (msg && msg[0]) {
+        strncpy(s_network_msg, msg, sizeof(s_network_msg) - 1);
+        s_network_msg[sizeof(s_network_msg) - 1] = '\0';
+    } else {
+        s_network_msg[0] = '\0';
+    }
+}
+
 esp_err_t emote_set_network_status(bool sta_connected, const char *ap_ssid)
 {
     ESP_RETURN_ON_FALSE(s_emote_handle != NULL, ESP_ERR_INVALID_STATE, TAG, "emote handle is NULL");
@@ -182,7 +194,11 @@ esp_err_t emote_set_network_status(bool sta_connected, const char *ap_ssid)
     if (sta_connected && ap_present) {
         snprintf(msg, sizeof(msg), "Online * AP: %s", ap_ssid);
     } else if (sta_connected) {
-        snprintf(msg, sizeof(msg), "Wi-Fi connected");
+        if (s_network_msg[0]) {
+            snprintf(msg, sizeof(msg), "%s", s_network_msg);
+        } else {
+            snprintf(msg, sizeof(msg), "Wi-Fi connected");
+        }
     } else if (ap_present) {
         snprintf(msg, sizeof(msg), "Setup WiFi: %s", ap_ssid);
     } else {

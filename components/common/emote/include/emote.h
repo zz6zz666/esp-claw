@@ -15,6 +15,7 @@ extern "C" {
 
 esp_err_t emote_start(void);
 esp_err_t emote_set_network_status(bool sta_connected, const char *ap_ssid);
+void emote_set_network_msg(const char *msg);
 
 #ifdef __cplusplus
 }
