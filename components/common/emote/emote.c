@@ -173,11 +173,36 @@ static esp_err_t emote_apply(const char *idle, const char *msg)
     return ESP_OK;
 }
 
+static void utf8_strip_non_bmp(char *buf, size_t buf_size)
+{
+    size_t w = 0;
+    for (size_t r = 0; r < buf_size && buf[r]; ) {
+        unsigned char c = (unsigned char)buf[r];
+        int clen;
+        if (c < 0x80)          clen = 1;
+        else if ((c & 0xE0) == 0xC0) clen = 2;
+        else if ((c & 0xF0) == 0xE0) clen = 3;
+        else if ((c & 0xF8) == 0xF0) clen = 4;
+        else                    clen = 1;
+
+        if (r + clen > buf_size) break;
+
+        if (clen == 4) {
+            ESP_LOGW(TAG, "stripping 4-byte UTF-8 char at offset %zu (emoji not supported by LVGL font)", r);
+            r += clen;
+        } else {
+            while (clen-- > 0) buf[w++] = buf[r++];
+        }
+    }
+    buf[w] = '\0';
+}
+
 void emote_set_network_msg(const char *msg)
 {
     if (msg && msg[0]) {
         strncpy(s_network_msg, msg, sizeof(s_network_msg) - 1);
         s_network_msg[sizeof(s_network_msg) - 1] = '\0';
+        utf8_strip_non_bmp(s_network_msg, sizeof(s_network_msg));
     } else {
         s_network_msg[0] = '\0';
     }
