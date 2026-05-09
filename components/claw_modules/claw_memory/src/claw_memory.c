@@ -769,6 +769,13 @@ static esp_err_t claw_memory_long_term_collect(const claw_core_request_t *reques
                     "Do not treat /memory/MEMORY.md or raw memory files as the retrieval source of truth.\n"
                     "Do not mention internal memory policy, storage behavior, auto-extraction, or whether you will or will not remember something unless the user explicitly asks about memory behavior.\n"
                     "Summary label catalog:\n");
+    /* snprintf returns the untruncated write length.  Use strlen()
+       to track the *actual* bytes in the buffer so off never
+       exceeds the buffer boundary. */
+    off = strlen(content);
+    if (off >= buf_size - 1) {
+        goto out_full;
+    }
     cJSON_ArrayForEach(item, summaries) {
         const char *label = cJSON_GetStringValue(cJSON_GetObjectItem(item, "label"));
 
@@ -779,14 +786,22 @@ static esp_err_t claw_memory_long_term_collect(const claw_core_request_t *reques
             continue;
         }
         off += snprintf(content + off, buf_size - off, "- %s\n", label);
+        off = strlen(content);
     }
     if (count == 0) {
         off += snprintf(content + off, buf_size - off, "- (empty)\n");
+        off = strlen(content);
     }
 
     out_context->kind = CLAW_CORE_CONTEXT_KIND_SYSTEM_PROMPT;
     out_context->content = content;
 
+    cJSON_Delete(index_root);
+    return ESP_OK;
+
+out_full:
+    out_context->kind = CLAW_CORE_CONTEXT_KIND_SYSTEM_PROMPT;
+    out_context->content = content;
     cJSON_Delete(index_root);
     return ESP_OK;
 }
