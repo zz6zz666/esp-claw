@@ -482,7 +482,7 @@ static esp_err_t cap_im_qq_fetch_gateway_url(void)
 {
     int attempt = 0;
 
-retry:
+retry:;
     cap_im_qq_http_resp_t resp = {0};
     esp_http_client_config_t config = {0};
     esp_http_client_handle_t client = NULL;
@@ -1107,7 +1107,7 @@ static esp_err_t cap_im_qq_api_post(const char *path,
 {
     int attempt = 0;
 
-retry:
+retry:;
     cap_im_qq_http_resp_t resp = {0};
     esp_http_client_config_t config = {0};
     esp_http_client_handle_t client = NULL;
